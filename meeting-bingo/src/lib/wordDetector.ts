@@ -31,7 +31,7 @@ export function detectWordsWithAliases(
     if (alreadyFilled.has(lower)) continue;
 
     const normalizedWord = normalizeText(word);
-    let found = false;
+    let found: boolean;
 
     if (normalizedWord.includes(' ')) {
       found = normalizedTranscript.includes(normalizedWord);

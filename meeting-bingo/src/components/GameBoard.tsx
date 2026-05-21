@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { type WinningLine } from '../types';
 import { useGame } from '../context/GameContext';
 import { useBingoDetection } from '../hooks/useBingoDetection';
@@ -52,7 +52,10 @@ export function GameBoard({ onWin, onNavigateToCategory }: Props) {
     firedRef.current = false;
   }, [startedAt]);
 
-  const stableOnWin = useCallback(onWin, [onWin]);
+  const onWinRef = useRef(onWin);
+  useEffect(() => {
+    onWinRef.current = onWin;
+  });
 
   useEffect(() => {
     if (!winningLine || hasWon || firedRef.current || !card) return;
@@ -64,8 +67,8 @@ export function GameBoard({ onWin, onNavigateToCategory }: Props) {
           return card.squares[r][c];
         })
         .find(sq => !sq.isFreeSpace)?.word ?? '';
-    stableOnWin(winningLine, winningWord);
-  }, [winningLine, hasWon, card, stableOnWin]);
+    onWinRef.current(winningLine, winningWord);
+  }, [winningLine, hasWon, card]);
 
   // Reset speech state when a new card is generated
   useEffect(() => {
