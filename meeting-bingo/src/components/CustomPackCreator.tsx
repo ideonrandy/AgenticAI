@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 const MIN_WORDS = 24;
+const MAX_WORD_LEN = 80;
 
 interface Props {
   onStart: (words: string[], packName: string) => void;
@@ -11,11 +12,13 @@ export function CustomPackCreator({ onStart, onBack }: Props) {
   const [packName, setPackName] = useState('');
   const [rawInput, setRawInput] = useState('');
 
-  const words = rawInput
+  const allWords = rawInput
     .split('\n')
     .map(w => w.trim())
     .filter(w => w.length > 0);
 
+  const tooLong = allWords.some(w => w.length > MAX_WORD_LEN);
+  const words = allWords.filter(w => w.length <= MAX_WORD_LEN);
   const uniqueWords = [...new Set(words)];
   const count = uniqueWords.length;
   const ready = count >= MIN_WORDS;
@@ -57,6 +60,11 @@ export function CustomPackCreator({ onStart, onBack }: Props) {
             {!ready && ` — need ${MIN_WORDS - count} more`}
             {ready && ' ✓ ready to play'}
           </p>
+          {tooLong && (
+            <p className="text-xs mt-1 text-amber-600">
+              Words over {MAX_WORD_LEN} characters are excluded.
+            </p>
+          )}
         </div>
 
         <button
