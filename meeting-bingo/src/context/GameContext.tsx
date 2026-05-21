@@ -3,13 +3,10 @@ import { type GameState, type CategoryId, type WinningLine } from '../types';
 import { generateCard } from '../lib/cardGenerator';
 import { countFilled } from '../lib/bingoChecker';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { PersistedGameSchema } from '../lib/gameStateSchema';
 
 const STORAGE_KEY = 'meeting-bingo-game-v1';
 
-interface PersistedGame {
-  version: 'v1';
-  state: GameState;
-}
 
 export type Action =
   | { type: 'START_GAME'; category: CategoryId; customWords?: string[]; customPackName?: string }
@@ -108,13 +105,13 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const { read, write } = useLocalStorage<PersistedGame | null>(STORAGE_KEY, null);
+  const { read, write } = useLocalStorage<unknown>(STORAGE_KEY, null);
 
   const [state, dispatch] = useReducer(gameReducer, undefined, (): GameState => {
-    const stored = read();
-    if (stored?.version === 'v1') {
+    const result = PersistedGameSchema.safeParse(read());
+    if (result.success) {
       // Reset isListening — browser can't be listening on a fresh page load
-      return { ...stored.state, isListening: false };
+      return { ...result.data.state, isListening: false };
     }
     return initialState;
   });
