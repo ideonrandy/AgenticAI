@@ -1,4 +1,4 @@
-export type CategoryId = 'agile' | 'corporate' | 'tech';
+export type CategoryId = 'agile' | 'corporate' | 'tech' | 'custom';
 export type GameStatus = 'idle' | 'setup' | 'playing' | 'won';
 
 export interface BingoSquare {
@@ -25,6 +25,8 @@ export interface WinningLine {
 export interface GameState {
   status: GameStatus;
   category: CategoryId | null;
+  customWords: string[] | null;
+  customPackName: string | null;
   card: BingoCard | null;
   isListening: boolean;
   startedAt: number | null;

@@ -2,11 +2,12 @@ import { useState, useCallback } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { LandingPage } from './components/LandingPage';
 import { CategorySelect } from './components/CategorySelect';
+import { CustomPackCreator } from './components/CustomPackCreator';
 import { GameBoard } from './components/GameBoard';
 import { WinScreen } from './components/WinScreen';
 import { type CategoryId, type WinningLine } from './types';
 
-type Screen = 'landing' | 'category' | 'game';
+type Screen = 'landing' | 'category' | 'custom' | 'game';
 
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('landing');
@@ -15,6 +16,12 @@ function AppInner() {
 
   const handleCategorySelect = (category: CategoryId) => {
     dispatch({ type: 'START_GAME', category });
+    setScreen('game');
+    setShowWinOverlay(false);
+  };
+
+  const handleCustomStart = (words: string[], packName: string) => {
+    dispatch({ type: 'START_GAME', category: 'custom', customWords: words, customPackName: packName });
     setScreen('game');
     setShowWinOverlay(false);
   };
@@ -40,7 +47,14 @@ function AppInner() {
       {screen === 'category' && (
         <CategorySelect
           onSelect={handleCategorySelect}
+          onCreateCustom={() => setScreen('custom')}
           onBack={() => setScreen('landing')}
+        />
+      )}
+      {screen === 'custom' && (
+        <CustomPackCreator
+          onStart={handleCustomStart}
+          onBack={() => setScreen('category')}
         />
       )}
       {screen === 'game' && (

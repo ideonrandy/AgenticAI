@@ -12,7 +12,7 @@ interface PersistedGame {
 }
 
 export type Action =
-  | { type: 'START_GAME'; category: CategoryId }
+  | { type: 'START_GAME'; category: CategoryId; customWords?: string[]; customPackName?: string }
   | { type: 'FILL_SQUARE'; id: string; isAutoFilled?: boolean }
   | { type: 'RESET_GAME' }
   | { type: 'SET_LISTENING'; value: boolean }
@@ -21,6 +21,8 @@ export type Action =
 const initialState: GameState = {
   status: 'idle',
   category: null,
+  customWords: null,
+  customPackName: null,
   card: null,
   isListening: false,
   startedAt: null,
@@ -33,11 +35,13 @@ const initialState: GameState = {
 function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'START_GAME': {
-      const card = generateCard(action.category);
+      const card = generateCard(action.category, action.customWords);
       return {
         ...state,
         status: 'playing',
         category: action.category,
+        customWords: action.customWords ?? null,
+        customPackName: action.customPackName ?? null,
         card,
         isListening: false,
         startedAt: Date.now(),
@@ -65,7 +69,7 @@ function gameReducer(state: GameState, action: Action): GameState {
 
     case 'RESET_GAME': {
       if (!state.category) return initialState;
-      const card = generateCard(state.category);
+      const card = generateCard(state.category, state.customWords ?? undefined);
       return {
         ...state,
         status: 'playing',

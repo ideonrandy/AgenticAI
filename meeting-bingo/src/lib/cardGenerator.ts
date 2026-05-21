@@ -10,11 +10,18 @@ function shuffle<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export function generateCard(categoryId: CategoryId): BingoCard {
-  const category = CATEGORIES.find(c => c.id === categoryId);
-  if (!category) throw new Error(`Unknown category: ${categoryId}`);
+export function generateCard(categoryId: CategoryId, customWords?: string[]): BingoCard {
+  let words: string[];
+  if (categoryId === 'custom') {
+    if (!customWords || customWords.length < 24) throw new Error('Custom pack needs at least 24 words');
+    words = customWords;
+  } else {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    if (!category) throw new Error(`Unknown category: ${categoryId}`);
+    words = category.words;
+  }
 
-  const selectedWords = shuffle(category.words).slice(0, 24);
+  const selectedWords = shuffle(words).slice(0, 24);
   const squares: BingoSquare[][] = [];
   let wordIndex = 0;
 
