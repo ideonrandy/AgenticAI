@@ -131,6 +131,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- intentional: hook is co-located with its context
 export function useGame(): GameContextValue {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used within GameProvider');

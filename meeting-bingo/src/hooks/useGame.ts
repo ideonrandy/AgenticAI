@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type Dispatch } from 'react';
+import { useState, useCallback, useRef, useEffect, type Dispatch } from 'react';
 import { type BingoCard } from '../types';
 import { type Action } from '../context/GameContext';
 import { useSpeechRecognition } from './useSpeechRecognition';
@@ -16,9 +16,15 @@ export function useSpeechFill({ card, dispatch, onWordsDetected }: UseSpeechFill
 
   // Keep refs to latest values — stable callback reads from refs at call time
   const cardRef = useRef(card);
-  cardRef.current = card;
   const onWordsDetectedRef = useRef(onWordsDetected);
-  onWordsDetectedRef.current = onWordsDetected;
+
+  useEffect(() => {
+    cardRef.current = card;
+  });
+
+  useEffect(() => {
+    onWordsDetectedRef.current = onWordsDetected;
+  });
 
   // Stable callback — reads from cardRef at call time, never goes stale
   const handleFinalResult = useCallback((transcript: string) => {
@@ -47,8 +53,7 @@ export function useSpeechFill({ card, dispatch, onWordsDetected }: UseSpeechFill
       setDetectedWords(prev => [...prev, ...found].slice(-20));
       onWordsDetectedRef.current?.(found);
     }
-  // dispatch is stable from useReducer; cardRef is a ref (no closure issue)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // dispatch is stable from useReducer; cardRef/onWordsDetectedRef are refs (no closure issue)
   }, [dispatch]);
 
   const startListening = useCallback(() => {
