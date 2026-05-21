@@ -2,75 +2,88 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Status
+## Repository Layout
 
-This repository contains planning documents for **Meeting Bingo** — a browser-based bingo game with live audio transcription. The app has not been built yet. The planning docs are:
-
-- `meeting-bingo-prd.md` — Product requirements and user stories
-- `meeting-bingo-architecture.md` — Architecture, full type definitions, and reference code for all core modules
-- `meeting-bingo-implementation-plan.md` — Phased build plan (90-minute MVP target)
-- `meeting-bingo-uxr.md` — UX research
-
-## Setup
-
-The project will live in a `meeting-bingo/` subdirectory:
-
-```bash
-npm create vite@latest meeting-bingo -- --template react-ts
-cd meeting-bingo
-npm install canvas-confetti
-npm install -D tailwindcss postcss autoprefixer @types/canvas-confetti
-npx tailwindcss init -p
+```
+meeting-bingo/       # The app (Vite + React 19 + TypeScript strict)
+docs/code_review/    # Governance review reports
+meeting-bingo-*.md   # Planning docs (PRD, architecture, implementation plan, UXR)
 ```
 
-## Commands (once `meeting-bingo/` exists)
+All app work happens inside `meeting-bingo/`. Run all commands from that directory.
+
+## Commands
 
 ```bash
-npm run dev          # Start dev server on port 3000
-npm run build        # tsc + vite build → dist/
-npm run preview      # Preview production build
-npm run lint         # ESLint on .ts/.tsx files
-npm run typecheck    # tsc --noEmit (strict mode required)
+npm run dev          # Start dev server (Vite default port)
+npm run build        # tsc -b && vite build → dist/
+npm run preview      # Serve dist/ locally
+npm run lint         # ESLint on all .ts/.tsx files
+npm run typecheck    # tsc -b (strict mode — no errors tolerated)
 ```
+
+There is no test suite. TypeScript strict mode and ESLint are the primary quality gates.
 
 ## Stack
 
 | Concern | Choice |
-|---------|--------|
-| Framework | React 18 + TypeScript (strict) |
-| Build | Vite |
-| Styling | Tailwind CSS |
+|---|---|
+| Framework | React 19 + TypeScript strict |
+| Build | Vite 8 |
+| Styling | Tailwind CSS 3 |
 | Speech | Web Speech API (browser-native, no keys) |
-| State | React useState + Context |
-| Persistence | localStorage only |
-| Animation | CSS + canvas-confetti |
-| Deployment | Vercel free tier |
+| State | `useReducer` + Context (`src/context/GameContext.tsx`) |
+| Persistence | `localStorage` only (`src/hooks/useLocalStorage.ts`) |
+| Animation | CSS + `canvas-confetti` |
+| Deployment | Vercel (GitHub integration — every push to `main` auto-deploys) |
 
 No backend. No auth. All processing is client-side.
 
 ## Architecture
 
-The app uses a screen-based navigation pattern (no router): `App.tsx` holds a `screen` state (`'landing' | 'category' | 'game' | 'win'`) and renders one top-level component at a time.
+### Navigation
 
-**Data flow:**
-1. `generateCard(categoryId)` in `src/lib/cardGenerator.ts` shuffles the category's word list and builds a `BingoCard` (5×5 `BingoSquare[][]`). Center square is always the free space, pre-filled.
-2. `useSpeechRecognition` wraps the Web Speech API with `continuous: true, interimResults: true`. On each final result it fires a callback with the transcript chunk.
-3. `detectWordsWithAliases` in `src/lib/wordDetector.ts` matches transcript text against card words using word-boundary regex for single words and substring match for phrases. A `WORD_ALIASES` map handles abbreviations (`CI/CD`, `ROI`, etc.).
-4. `checkForBingo` in `src/lib/bingoChecker.ts` scans all 12 lines (5 rows + 5 cols + 2 diagonals) and returns the first `WinningLine` found, or `null`.
-5. Win state routes to `WinScreen` with confetti via `canvas-confetti`.
+`App.tsx` owns a `screen` state and renders one top-level component at a time — no router:
 
-**Key types** (all in `src/types/index.ts`):
-- `BingoSquare` — `{ id, word, isFilled, isAutoFilled, isFreeSpace, filledAt, row, col }`
+```
+'landing' → LandingPage
+'category' → CategorySelect
+'custom' → CustomPackCreator
+'game' → GameBoard  (+  WinScreen overlay when showWinOverlay is true)
+```
+
+### Data Flow
+
+1. User picks a category (or creates a custom pack) → `dispatch({ type: 'START_GAME', category, customWords?, customPackName? })`
+2. `generateCard(categoryId, customWords?)` in `src/lib/cardGenerator.ts` shuffles words and builds a 5×5 `BingoSquare[][]`. Center square is always the FREE space.
+3. `useSpeechRecognition` (`src/hooks/`) wraps the Web Speech API with `continuous: true, interimResults: true`. Each final transcript fires a callback.
+4. `detectWordsWithAliases` in `src/lib/wordDetector.ts` matches transcript text against card words using word-boundary regex (single words) or substring match (phrases). `WORD_ALIASES` maps abbreviations like `CI/CD`, `ROI`.
+5. `checkForBingo` in `src/lib/bingoChecker.ts` scans all 12 lines (5 rows + 5 cols + 2 diagonals) and returns the first `WinningLine` or `null`.
+6. Win triggers `WinScreen` overlay + `canvas-confetti`.
+
+### Key Types (`src/types/index.ts`)
+
+- `CategoryId` — `'agile' | 'corporate' | 'tech' | 'custom'`
+- `BingoSquare` — `{ id, word, isFilled, isAutoFilled, isFreeSpace, row, col }`
 - `BingoCard` — `{ squares: BingoSquare[][], words: string[] }`
-- `GameState` — `{ status: GameStatus, category, card, isListening, startedAt, completedAt, winningLine, winningWord, filledCount }`
+- `GameState` — `{ status, category, customWords, customPackName, card, isListening, startedAt, completedAt, winningLine, winningWord, filledCount }`
 - `WinningLine` — `{ type: 'row'|'column'|'diagonal', index, squares: string[] }`
 
-**Categories** (`src/data/categories.ts`): three packs — `agile`, `corporate`, `tech` — each with 40+ words. Each category needs at least 24 words to fill a card.
+### Custom Packs
 
-## Environment
+`CategoryId` includes `'custom'`. When category is `'custom'`, `GameState.customWords` holds the word list and `generateCard` receives it as a second argument. `RESET_GAME` re-uses the stored `customWords` so Play Again works. Minimum 24 unique words required.
 
-Create `.env.example` with `VITE_APP_URL=https://your-domain.vercel.app`. The actual URL goes in Vercel environment variables, not committed to the repo.
+### State Persistence
+
+Game state is serialised to `localStorage` under key `meeting-bingo-game-v1` on every change and rehydrated on load. `isListening` is always reset to `false` on rehydration (browser can't be listening on a fresh page load).
 
 ## Browser Compatibility
 
-Target Chrome/Edge primarily. Web Speech API is unavailable in Firefox by default — the game must degrade gracefully to manual-only mode when `window.SpeechRecognition` and `window.webkitSpeechRecognition` are both absent.
+Target Chrome/Edge. Web Speech API is absent in Firefox by default — the app degrades gracefully to manual-only mode when both `window.SpeechRecognition` and `window.webkitSpeechRecognition` are absent.
+
+## Workflow
+
+- **Branches**: all features and fixes go on a branch; never commit directly to `main`.
+- **Linear**: create or update a Linear ticket (team: `Randyk`) for every bug fix or feature. Move to *In Progress* when starting, *In Review* when the PR is open.
+- **Governance**: after merging, run `/governance` to lint and type-check. Fix any issues in a follow-up PR.
+- **Deployment**: Vercel is connected to GitHub. Merging to `main` auto-deploys to production (`agentic-ai-lovat.vercel.app`). Vercel project ID: `prj_WNynagecVy0IRCjbbolGSFkrCs9N`, org: `team_5mmLBdxHGpSDn85pUKIAaiat`.
